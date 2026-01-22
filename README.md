@@ -34,52 +34,35 @@ equirements.txt. Key dependencies include:
 
 ## Project Structure
 
-``
+```text
 MVP3_Revamp/
- qt_gui.py                 # Main GUI application
- comm.py                   # Serial communication module
- vision_pub.py             # Camera/ArUco detection publisher
- positionZMQSub.py         # Position subscriber via ZMQ
- DDR.py                    # Robot control module
- utils.py                  # Utility functions
- algorithms/               # Path planning algorithms
-    mrpp.py              # Multi-robot path planning
-    mrpp_b.py            # Alternative MRPP implementation
-    rvo2.py              # Reciprocal Velocity Obstacle
-    rvobin/              # RVO library binaries
- patterns/                # Pre-defined movement patterns
-    circle1.py
-    circle2.py
-    figure8_2.py
-    template.py
- firmware/                # Arduino firmware
-    xiao_ap.ino
-    xiao1-8.ino
- projects/multipath/      # Advanced multi-agent solving
-    advanced/            # Advanced graph algorithms (Java)
-    ILP/                 # Integer Linear Programming solvers (Java)
- test/                    # Test utilities
- gurobi/                  # Gurobi optimization files
-``
+├── qt_gui.py                 # Main GUI application
+├── comm.py                   # Serial communication module
+├── vision_pub.py             # Camera / ArUco detection publisher
+├── positionZMQSub.py         # Position subscriber via ZMQ
+├── DDR.py                    # Robot control module
+├── utils.py                  # Utility functions
+├── algorithms/               # Path planning algorithms
+│   ├── mrpp.py               # Multi-robot path planning
+│   ├── mrpp_b.py             # Alternative MRPP implementation
+│   ├── rvo2.py               # Reciprocal Velocity Obstacle
+│   └── rvobin/               # RVO library binaries
+├── patterns/                 # Pre-defined movement patterns
+│   ├── circle1.py
+│   ├── circle2.py
+│   ├── figure8_2.py
+│   └── template.py
+├── firmware/                 # Arduino firmware
+│   ├── xiao_ap.ino
+│   └── xiao1-8.ino
+├── projects/
+│   └── multipath/            # Advanced multi-agent solving
+│       ├── advanced/         # Advanced graph algorithms (Java)
+│       └── ILP/              # Integer Linear Programming solvers (Java)
+├── test/                     # Test utilities
+└── gurobi/                   # Gurobi optimization files
 
----
 
-## Installation
-
-### 1. Create and Activate Conda Environment
-
-`ash
-conda create -n MVP3_1 python=3.12
-conda activate MVP3_1
-`
-
-### 2. Install Dependencies
-
-`ash
-pip install -r requirements.txt
-`
-
----
 
 ## Running the Project
 
