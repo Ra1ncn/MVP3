@@ -70,9 +70,9 @@ MVP3_Revamp/
 
 Run the GUI in simulation mode (no hardware required):
 
-`ash
+```bash
 python qt_gui.py -s
-`
+```
 
 This mode allows you to:
 - Test algorithms without physical robots
@@ -84,9 +84,9 @@ This mode allows you to:
 
 Run the GUI with live camera input and real robot coordination:
 
-`ash
+```bash
 python qt_gui.py
-`
+```
 
 **Requirements for real-world mode:**
 - Connected camera with 480  680 resolution
@@ -129,23 +129,23 @@ python qt_gui.py
 
 ### Running Simulation
 
-`ash
+```bash
 # Activate environment
 conda activate MVP3_1
 
 # Run simulation mode
 python qt_gui.py -s
-`
+```
 
 ### Running with Real Hardware
 
-`ash
+```bash
 # Activate environment
 conda activate MVP3_1
 
 # Ensure camera is connected and robots are powered on
 python qt_gui.py
-`
+```
 
 ---
 
