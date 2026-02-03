@@ -15,8 +15,8 @@ It supports two execution modes:
 ## System Requirements
 
 - **Python 3.12**
-- **Camera** (for real-world mode): 480  680 resolution
-- **Operating System**: Windows/Linux/macOS
+- **Camera** (for real-world mode): 720  1280 resolution
+- **Operating System**: Windows
 
 ### Dependencies
 
@@ -25,133 +25,71 @@ equirements.txt. Key dependencies include:
 - PyQt6 - GUI framework
 - OpenCV - Vision processing
 - ZMQ - Network communication
-- NumPy - Numerical computing
-- Pygame/Pygame_gui - Graphics and UI components
-- PySerial - Serial communication
-- Munkres - Assignment algorithm
+# MVP3 Revamp
 
----
+MVP3 Revamp is a prototype system for multi-robot path planning, vision-based localization, and coordinated control. It supports both simulation and real-hardware modes and is intended for algorithm validation and small-robot integration.
 
-## Project Structure
+Key features
+- Multi-robot path planning and collision avoidance (MRPP, RVO2, etc.)
+- Real-time ArUco-based localization from a camera, published over ZMQ
+- PyQt6 GUI with simulation and real-hardware modes
+- Serial communication and robot command framing
 
-```text
-MVP3_Revamp/
-├── qt_gui.py                 # Main GUI application
-├── comm.py                   # Serial communication module
-├── vision_pub.py             # Camera / ArUco detection publisher
-├── positionZMQSub.py         # Position subscriber via ZMQ
-├── DDR.py                    # Robot control module
-├── utils.py                  # Utility functions
-├── algorithms/               # Path planning algorithms
-│   ├── mrpp.py               # Multi-robot path planning
-│   ├── mrpp_b.py             # Alternative MRPP implementation
-│   ├── rvo2.py               # Reciprocal Velocity Obstacle
-│   └── rvobin/               # RVO library binaries
-├── patterns/                 # Pre-defined movement patterns
-│   ├── circle1.py
-│   ├── circle2.py
-│   ├── figure8_2.py
-│   └── template.py
-├── firmware/                 # Arduino firmware
-│   ├── xiao_ap.ino
-│   └── xiao1-8.ino
-├── projects/
-│   └── multipath/            # Advanced multi-agent solving
-│       ├── advanced/         # Advanced graph algorithms (Java)
-│       └── ILP/              # Integer Linear Programming solvers (Java)
-├── test/                     # Test utilities
-└── gurobi/                   # Gurobi optimization files
+Quick Start
+1. Create and activate a Python environment (recommended with conda):
+
+```bash
+conda create -n MVP3_1 python=3.12 -y
+conda activate MVP3_1
+pip install -r requirements.txt
 ```
 
-
-## Running the Project
-
-### Simulation Mode
-
-Run the GUI in simulation mode (no hardware required):
+2. Run the GUI in simulation mode (no hardware required):
 
 ```bash
 python qt_gui.py -s
 ```
 
-This mode allows you to:
-- Test algorithms without physical robots
-- Simulate multi-agent path planning
-- Visualize movement patterns
-- Debug coordination logic
-
-### Real-World Mode
-
-Run the GUI with live camera input and real robot coordination:
+3. Run the GUI in real-hardware mode (camera and robots required):
 
 ```bash
 python qt_gui.py
 ```
+Real-hardware setup (XIAO ESP32C6)
 
-**Requirements for real-world mode:**
-- Connected camera with 480  680 resolution
-- Serial connections to robots
-- ArUco markers for position tracking
+For real-world deployments we use Seeed XIAO ESP32C6 boards. One XIAO should act as the central signal sender and be connected directly to the PC via USB; flash that board with `xiao_ap_ESP_NOW.ino` from the `firmware/` folder. The remaining XIAO boards are installed on the robots — flash each robot's XIAO with `xiao_1_8_ESP_NOW.ino`. Adjust pin mappings in the sketches to match your hardware wiring. The system has been tested with around 10 robots operating concurrently. After the XIAO boards are flashed and the robots are powered, connect the camera and run the GUI (`python qt_gui.py`) to start the real-hardware experiment.
 
----
+Real-hardware deployment (XIAO ESP32C6)
 
-## Key Components
+This project uses Seeed XIAO ESP32C6 boards for real-world experiments. Use one XIAO as the central transmitter connected directly to the PC via USB and flash it with `firmware/xiao_ap_ESP_NOW.ino`. Install the remaining XIAO boards on each robot and flash them with `firmware/xiao_1_8_ESP_NOW.ino`. Adjust the pin assignments in the sketches to match your wiring. The system has been tested to run stably with around 10 robots concurrently. After flashing the boards, powering the robots and connecting the camera, start the GUI with `python qt_gui.py` to begin the real-hardware experiment.
 
-### Vision System (vision_pub.py)
-- Captures video from camera at configurable FPS (default: 30 FPS)
-- Detects ArUco markers and extracts corner coordinates
-- Publishes marker data via ZMQ network (port 5556)
-- Format: id x0 y0 x1 y1 x2 y2 x3 y3
 
-### Communication System (comm.py)
-- Serial communication with robots via USB
-- CRC8 checksum validation
-- Command framing and protocol handling
+Project layout (summary)
+- `qt_gui.py`: main GUI application (simulation and hardware modes)
+- `vision_pub.py`: camera capture and ArUco detection, publishes positions via ZMQ
+- `positionZMQSub.py`: subscribes to vision data and maintains robot states
+- `comm.py`: serial communication and command framing
+- `DDR.py`: differential-drive control logic
+- `algorithms/`: path planning and avoidance algorithms (`mrpp.py`, `rvo2.py`, ...)
+- `patterns/`: predefined movement patterns and examples
+- `firmware/`: microcontroller firmware examples
+- `projects/`: example projects and research code
 
-### Position Tracking (positionZMQSub.py)
-- Subscribes to vision data via ZMQ
-- Tracks robot positions in real-time
-- Coordinates multi-agent state
+Dependencies
+- See `requirements.txt` for the full list (OpenCV, PyQt6, pyzmq, numpy, pyserial, etc.).
 
-### Robot Control (DDR.py)
-- Differential drive robot control
-- Velocity and heading commands
-- Motor synchronization
+Optional Dependency: Gurobi (MRPP only)
 
-### Path Planning (algorithms/)
-- **MRPP** - Multi-Robot Path Planning
-- **RVO2** - Collision avoidance using Reciprocal Velocity Obstacles
-- Support for various optimization methods
+- Gurobi Optimizer **13.0.1**
+- Required only for MRPP (ILP-based multi-robot path planning)
+- Not required for vision, GUI control, or formation demos
 
----
+Development and contribution
+- To add a new algorithm, place the module under `algorithms/` and add a test entry in the GUI.
+- Issues and PRs are welcome—please include reproduction steps and configuration details.
 
-## Usage Examples
+References
+- Main GUI: [qt_gui.py](qt_gui.py)
+- Vision publisher: [vision_pub.py](vision_pub.py)
+- Communication: [comm.py](comm.py)
 
-### Running Simulation
-
-```bash
-# Activate environment
-conda activate MVP3_1
-
-# Run simulation mode
-python qt_gui.py -s
-```
-
-### Running with Real Hardware
-
-```bash
-# Activate environment
-conda activate MVP3_1
-
-# Ensure camera is connected and robots are powered on
-python qt_gui.py
-```
-
----
-
-## Configuration
-
-- **Vision Port**: 5556 (configured in vision_pub.py)
-- **Camera Resolution**: 480  680 pixels
-- **Default FPS**: 30 frames per second
-- **Serial Communication**: USB FTDI or CH340 adapters

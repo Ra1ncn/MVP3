@@ -239,9 +239,18 @@ class MainWindow(QMainWindow):
         left.addWidget(QLabel("Patterns:"))
         self.sel_ptn = QComboBox()
         ptn_files = [f for f in listdir("patterns/") if isfile(join("patterns/", f))]
+
+        ALLOWED_PATTERNS = {
+            # 把你真正要给人用的 pattern 写在这
+            "circle1.py",
+            "circle2.py",
+            "figure8_2.py",
+        }
+
         for f in ptn_files:
-            if f.endswith(".py") and (not f.endswith(".pyc")):
+            if f in ALLOWED_PATTERNS:
                 self.sel_ptn.addItem(f.split(".")[0], f)
+
         left.addWidget(self.sel_ptn)
 
         btn_pattern = QPushButton("Get Pattern")
@@ -253,9 +262,11 @@ class MainWindow(QMainWindow):
         left.addWidget(QLabel("Path Planning:"))
         self.sel_alg = QComboBox()
         alg_files = [f for f in listdir("algorithms/") if isfile(join("algorithms/", f))]
+        ALLOWED_ALGS = {"mrpp_b.py", "rvo2.py"}
         for f in alg_files:
-            if f.endswith(".py") and (not f.endswith(".pyc")):
+            if f in ALLOWED_ALGS:
                 self.sel_alg.addItem(f.split(".")[0], f)
+
         left.addWidget(self.sel_alg)
 
         btn_plan = QPushButton("Run ALG")
@@ -313,7 +324,7 @@ class MainWindow(QMainWindow):
             positionZMQSub._pull_zmq_data_once()
             positionZMQSub._initialize_zmq()
         else:
-            utils.carInfo = [(i, i) for i in range(1, 11)]
+            utils.carInfo = [(i, i) for i in range(1, 7)]  # simulate 6 cars with tag = ID
 
         # IMPORTANT: 统一用 carID 做 key，避免你旧代码里 car/tag 混用导致错车
         with lock:
@@ -449,7 +460,7 @@ class MainWindow(QMainWindow):
         t_loc.start()
         t_follow.start()
         t_send.start()
-
+    #不断观察小车现在在哪，对比你画的轨迹，然后算出此时此刻左右两个轮子该转多快。
     def Follow(self):
         # Qt版建议不要 0.001s 跑满CPU；5~10ms足够
         while True:
@@ -479,7 +490,7 @@ class MainWindow(QMainWindow):
             for i, (x, y, th) in enumerate(locs):
                 speeds[i] = DDR.Calculate(x, y, th, paths[i], vM, utils.wheelBase)
 
-            # 4) 可选同步
+            # 4) 可选同步   
             if syn:
                 self.Synchronize(speeds, paths)
 
@@ -492,19 +503,21 @@ class MainWindow(QMainWindow):
 
             time.sleep(0.01)
 
-
+    
     def Synchronize(self, speeds, paths):
         length = max((len(p) for p in paths), default=0)
         if length == 0:
             return
         for i, p in enumerate(paths):
-            diff = length - len(p)
-            diff = float(12 - diff) / 12.0
+            gap = length - len(p)                 # 路径长度差
+            diff = float(12 - gap) / 12.0         # 映射到 [0,1] 左右
             if diff < 0.0:
                 diff = 0.0
-            vL = speeds[i][0] * math.sqrt(diff)
-            vR = speeds[i][1] * math.sqrt(diff)
-            speeds[i] = (vL, vR)
+
+            # ✅ 关键改动：设置最小缩放，避免 diff=0 时速度直接变 (0,0)
+            scale = max(0.2, math.sqrt(diff))
+
+            speeds[i] = (speeds[i][0] * scale, speeds[i][1] * scale)
 
     def GetLocation(self):
         if self.sim:
@@ -563,7 +576,14 @@ class MainWindow(QMainWindow):
                 idlist = [carID for carID, _ in utils.carInfo]
                 lefts  = [self.cars[carID].lSpeed * self.simSpeed for carID, _ in utils.carInfo]
                 rights = [self.cars[carID].rSpeed * self.simSpeed for carID, _ in utils.carInfo]
-
+                
+                # # DEBUG: check selected cars
+                # watch = {1,4,5,6,7}
+                # for carID in idlist:
+                #     if carID in watch:
+                #         L = self.cars[carID].lSpeed * self.simSpeed
+                #         R = self.cars[carID].rSpeed * self.simSpeed
+                #         print("[PRE SEND]", carID, "L", L, "R", R)
             if run:
                 self.comm.SendId(idlist, lefts, rights)
             else:
@@ -666,30 +686,80 @@ class MainWindow(QMainWindow):
             self.testflag = True
 
     def B_plan(self):
-        if self.sel_alg.value == None:
+        # 0) 必须用 currentData()：UI 显示名 ≠ 文件名
+        #    下拉框初始化时应类似：
+        #    self.sel_alg.addItem("MRPP", "mrpp_b.py")
+        #    self.sel_alg.addItem("RVO2", "rvo2.py")
+        alg_file = self.sel_alg.currentData()
+        if alg_file is None:
             return
+        
+
+        # stop first
         self.B_stop()
-        mod = _load_source("", "algorithms/" + self.sel_alg.value)
-        locs = [0 for x in range(len(self.cars.keys()))]
+
+        # 1) load algorithm module (safe path join)
+        alg_path = os.path.join("algorithms", alg_file)
+        if not os.path.exists(alg_path):
+            print(f"[B_plan] algorithm file not found: {alg_path!r}")
+            return
+
+        mod = _load_source("", alg_path)
+
+        # 2) current locations (stable order: use utils.carInfo, not dict order)
         with lock:
-            for i, j in enumerate(self.cars.keys()):
-                locs[i] = (self.cars[j].x, self.cars[j].y)
-        paths = mod.GetPath(locs, self.GetRandomGoals(), utils.wheelBase, self.bound)
-        if self.sel_alg.value == "mrpp_b.py":
-            paths = paths
-        pre_paths = _load_source("", "algorithms/rvo2.py").GetPath(locs, [p[0] for p in paths], utils.wheelBase, self.bound)
-        for x in range(len(self.cars.keys())):
-            paths[x] = pre_paths[x] + paths[x]
-        paths = self.Refinement(paths)
-        with self.painter.lock2:
-            if self.sel_alg.value == "mrpp_b.py":
-                self.painter.showMode = 1
-            elif self.sel_alg.value == "rvo2.py":
-                self.painter.showMode = 2
+            # utils.carInfo is [(carID, ...), ...]
+            car_ids = [carID for (carID, _) in utils.carInfo]
+            locs = [(self.cars[carID].x, self.cars[carID].y) for carID in car_ids]
+
+        # 3) goals: for MRPP-style planners, you usually want deterministic count = num cars
+        goals = self.GetRandomGoals()  # keep your existing API
+
+        # 4) planner gives paths
+        paths2 = mod.GetPath(locs, goals, utils.wheelBase, self.bound)
+
+        # basic sanity check
+        if not isinstance(paths2, list) or len(paths2) != len(locs):
+            print(f"[B_plan] bad paths from {alg_file}: expected {len(locs)} paths, got {type(paths2)} len={getattr(paths2,'__len__',lambda:None)()}")
+            return
+        if any((not p) for p in paths2):
+            print(f"[B_plan] some paths are empty from {alg_file}")
+            return
+
+        # 5) connect to starts using rvo2 (same style as B_pattern)
+        rvo2 = _load_source("", os.path.join("algorithms", "rvo2.py"))
+        # connect from current locs -> first waypoint of each planned path
+        starts = [p[0] for p in paths2]
+        paths1 = rvo2.GetPath(locs, starts, utils.wheelBase, self.bound)
+
+        # 6) refinement + merge
+        paths1 = self.Refinement(paths1)
+        paths2 = self.Refinement(paths2)
+
+        # small middle connection (helps if refinement trims ends)
+        pathsm = [[paths1[i][-1], paths2[i][0]] for i in range(len(paths2))]
+        pathsm = self.Refinement(pathsm)
+
+        merged = []
+        for i in range(len(paths2)):
+            merged.append(paths1[i] + pathsm[i] + paths2[i])
+
+        # 7) painter mode (optional)
+        # with self.painter.lock2:
+        #     if alg_file == "mrpp_b.py":
+        #         self.painter.showMode = 1
+        #     elif alg_file == "rvo2.py":
+        #         self.painter.showMode = 2
+        #     else:
+        #         # default / unknown algorithm display mode
+        #         self.painter.showMode = 0
+
+        # 8) commit (stable order)
         with lock:
             self.syn = True
-            for i, j in enumerate(self.cars.keys()):
-                self.cars[j].path = paths[i]
+            for idx, carID in enumerate(car_ids):
+                self.cars[carID].path = merged[idx]
+
 
     def Shuffle(self, locs, paths):
         #connect current location to the start point of desired path
@@ -774,11 +844,19 @@ class MainWindow(QMainWindow):
             if utils.CheckCollosion(2 * utils.wheelBase, x, y, obj[0], obj[1]):
                 return False
         return True
+def _is_sim_mode() -> bool:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-s", dest="sim", action="store_true", default=False)
+    args, _ = parser.parse_known_args()
+    return bool(os.environ.get("sim", args.sim))
+
 if __name__ == "__main__":
-    start_vision_pub_if_needed()
+    if not _is_sim_mode():
+        start_vision_pub_if_needed()
+    else:
+        print("[qt_gui] Simulation mode: skip starting vision_pub (camera).")
 
     app = QApplication(sys.argv)
     w = MainWindow()
     w.show()
     sys.exit(app.exec())
-

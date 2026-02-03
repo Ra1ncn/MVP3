@@ -8,13 +8,13 @@ zmqPublisherIP = "localhost"
 zmqPublisherPort = "5556"   # 注意：你这里是字符串，保持一致即可（或改 int 5556）
 
 simSpeed = 5.0
-wheelBase = 30.0
-tagRatio = 1.0
+wheelBase = 20.0
+tagRatio = 0.878  # 标签边长(3.6cm) / 物理轮距(4.1cm)  tag size in cm / actual tag size in cm
 
 container_width = 700
 container_height = 500
-painter_width = 680
-painter_height = 480
+painter_width = 1280
+painter_height = 720
 spacer = 8
 gridCopy = []
 
@@ -30,7 +30,6 @@ RGB_PATH_COLORS = [
     (0, 0, 0), (1, 0, 103), (213, 255, 0), (255, 0, 86),
     (158, 0, 142), (14, 76, 161), (255, 229, 2), (0, 95, 57),
     (0, 255, 0), (149, 0, 58), (255, 147, 126), (164, 36, 0),
-    # ... 你原来的长表可以原封不动拷过来
 ]
 
 class UnitCar:

@@ -1,6 +1,6 @@
 package projects.multipath.ILP;
 
-import gurobi.GRBException;
+import com.gurobi.gurobi.GRBException;
 
 import java.util.HashMap;
 import java.util.HashSet;

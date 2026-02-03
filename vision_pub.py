@@ -10,13 +10,14 @@
 import time
 import zmq# 用于把数据通过网络发送出去
 import cv2
+import os
 
 # =====================
 # ZMQ PUB config
 # =====================
 PUB_IP = "0.0.0.0" # 表示监听本机所有网络接口，这样局域网内的其他电脑也能连进来
 PUB_PORT = 5556  # 和 utils.zmqPublisherPort 对齐 像一个房间号，接收方也得开这个房间号才能领到数据
-
+# 1280*720
 # =====================
 # Camera config
 # =====================
@@ -34,8 +35,17 @@ def main():
     cap = cv2.VideoCapture(CAM_INDEX) # 打开摄像头
     if not cap.isOpened():
         raise RuntimeError("Camera open failed.")
+    # # 强制设置分辨率
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, FPS_LIMIT)
+    # 打印摄像头实际分辨率
+    ret, frame = cap.read()
+    if not ret:
+        raise RuntimeError("First frame read failed.")
+    h, w = frame.shape[:2]
+    print(f"Camera confirmed: {w} x {h}", flush=True)
 
-    # ArUco
     aruco = cv2.aruco
     dictionary = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
     params = aruco.DetectorParameters()
@@ -61,10 +71,10 @@ def main():
                 pub.send_string(msg)
 
 
-        cv2.imshow("vision_pub", frame)# 弹出一个窗口让你看到摄像头画面
-        if cv2.waitKey(1) & 0xFF == 27:  # ESC# 每一帧停1毫秒看你按没按 ESC 键
-            break # 按了就退出循环
-
+        cv2.imshow("vision_pub", frame)
+        key = cv2.waitKey(1) & 0xFF
+        if key == 27:  # ESC
+            break
         # 简单限速 如果运行太快，就让程序强制睡一会儿，保证不超过设定的 FPS
         now = time.time()
         dt = now - last

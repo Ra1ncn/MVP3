@@ -141,6 +141,10 @@ class UsbAPComm:
             if l < 0:
                 lb |= 0x80
 
+                
+            # if car_id_i in (1,4,5,6,7):
+            #     print("SendId write", car_id_i, "level", level, "car_index", car_index,
+            #         "L", l, "R", r, "lb", lb, "rb", rb, "left_pos", left_pos, "right_pos", right_pos)
             payload = self._cmd_table[level]
             payload[right_pos] = rb
             payload[left_pos] = lb
@@ -173,8 +177,8 @@ class UsbAPComm:
             # Raw-only: send 32 bytes (AP must read exactly 32 each time, per level, in order)
             self._ser.write(payload32)
             return
-
-        # Framed: AA 55 | level | len(=32) | payload | checksum
+            # AA 55 | level(1) | len=32(1) | payload32(32) | chk(1, XOR)
+            # 总长度 = 2 + 1 + 1 + 32 + 1 = 37 bytes
         lvl = level & 0xFF
         ln = 32
         body = bytes([lvl, ln]) + payload32

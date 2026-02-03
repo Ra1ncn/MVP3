@@ -1,5 +1,6 @@
 """
 Path Planning Using MRPP solver.
+这个暂时不用了，保留作参考。
 """
 import utils
 import math
@@ -39,49 +40,102 @@ def generateGrid(wb, bound):
             newLine = nextLine
 
 def assignStart(locs):
+    """
+    locs: [(x,y), ...] in world/UI coords
+    return: list of vertex ids (row-major), unique
+    vertex_id = row * xSize + col
+    """
+    if not utils.gridCopy:
+        raise RuntimeError("gridCopy is empty; call generateGrid() first")
+
+    ySize = len(utils.gridCopy)          # rows
+    xSize = len(utils.gridCopy[0])       # cols
+
     startVertex = []
-    # Get the start vertices 
     for x, y in locs:
         closestVertex = -1
-        shortestDistace = 10000.0
-        # Get the closest vertices
-        for i in range(len(utils.gridCopy[0])):
-            for j in range(len(utils.gridCopy)):
-                thisVertexDist = GetDist(x, y, utils.gridCopy[i][j][0], utils.gridCopy[i][j][1])
-                if thisVertexDist < shortestDistace:
-                    # If it's already occupied by another car, don't use it
-                    if i * 6 + j in startVertex:
-                        continue
-                    closestVertex = i * 6 + j
-                    shortestDistace = thisVertexDist
+        shortestDist = float("inf")
+
+        for row in range(ySize):
+            for col in range(xSize):
+                vx, vy = utils.gridCopy[row][col]  # ✅ row, col
+                d = GetDist(x, y, vx, vy)
+                vid = row * xSize + col            # ✅ row-major
+
+                if d < shortestDist and vid not in startVertex:
+                    closestVertex = vid
+                    shortestDist = d
+
         startVertex.append(closestVertex)
+
     return startVertex
 
+
+GUROBI_HOME = r"C:\gurobi1301\win64"
+GUROBI_BIN  = os.path.join(GUROBI_HOME, "bin")
+GUROBI_JAR  = os.path.join(GUROBI_HOME, "lib", "gurobi.jar")
+
 def execute_java(startVertex, goalVertex):
-    """ Run Path Planning Algorithm, Return path """
-    cmd = ['java','projects.multipath.ILP.Main', '111', str(len(utils.gridCopy[0])), str(len(utils.gridCopy))]
-    for i in range(9):
+    """Run Path Planning Algorithm, Return stdout(str)."""
+    if len(startVertex) != len(goalVertex):
+        raise ValueError(f"startVertex({len(startVertex)}) != goalVertex({len(goalVertex)})")
+
+    cp = f".;{GUROBI_JAR}"  # Windows 用 ; 分隔
+
+    cmd = [
+        "java",
+        f"-Djava.library.path={GUROBI_BIN}",
+        "-cp", cp,
+        "projects.multipath.ILP.Main",
+        "111",
+        str(len(utils.gridCopy[0])),  # xSize
+        str(len(utils.gridCopy)),     # ySize
+    ]
+
+    n = len(startVertex)
+    for i in range(n):
         cmd.append(str(startVertex[i]))
         cmd.append(str(goalVertex[i]))
-    print(cmd)
-    proc = subprocess.Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    stdout, stderr = proc.communicate()
-    return stdout
+
+    print("[mrpp] cmd:", cmd)
+
+    proc = subprocess.Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT, text=True)
+    out, _ = proc.communicate()
+
+    print("[mrpp] java stdout:\n", out)
+    return out
+
+
+
+import re
 
 def extractPath(stdout):
-    lines = stdout.splitlines()
+    """
+    Parse lines like:
+    Agent 0: 0:23(5,3) 1:17(5,2) ...
+    and convert (x,y) grid coords into utils.gridCopy[y][x] points.
+    """
     pointList = []
-    for i in range(len(lines)):
-        lines[i] = str(lines[i])
-        if len(lines[i]) == 0:
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line.startswith("Agent "):
             continue
-        if lines[i][0] != 'A':
-            continue
-        pointList.append([])
-        for j in range(len(lines[i])):
-            if lines[i][j] == "(":
-                pointList[-1].append(utils.gridCopy[int(lines[i][j + 3])][int(lines[i][j + 1])])
+
+        # 只抓 (x,y) 这种括号
+        xy = re.findall(r"\((\d+),(\d+)\)", line)
+        pts = []
+        for x_str, y_str in xy:
+            x = int(x_str)
+            y = int(y_str)
+            # 你的 gridCopy 是 gridCopy[row][col] 还是 gridCopy[col][row]，
+            # 你之前用的是 gridCopy[int(..y..)][int(..x..)] or 反过来
+            # 根据你原 Java 输出 "(5,3)" 通常理解 x=5,y=3
+            pts.append(utils.gridCopy[y][x])
+        pointList.append(pts)
+
     return pointList
+
+
 
 def linear_scaling(locs):
     centerx = 640
@@ -107,7 +161,11 @@ def linear_scaling(locs):
     goalVertex = assignStart(goalVertex)
     stdout = execute_java(startVertex, goalVertex)
     print(stdout)
-    paths = extractPath(stdout)    
+    paths = extractPath(stdout)
+    expected = len(locs)
+    if len(paths) != expected:
+        raise RuntimeError(f"[mrpp] Java returned {len(paths)} paths (expected 9). Java output:\n{stdout}")
+    
     maxLen = 0    
     for i in range(9):
         if len(paths[i]) > maxLen:

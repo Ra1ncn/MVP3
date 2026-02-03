@@ -3,9 +3,9 @@ package projects.multipath.ILP;
 import projects.multipath.advanced.Graph;
 import projects.multipath.advanced.Path;
 import projects.multipath.advanced.Problem;
-import gurobi.GRB;
-import gurobi.GRBCallback;
-import gurobi.GRBException;
+import com.gurobi.gurobi.GRB;
+import com.gurobi.gurobi.GRBCallback;
+import com.gurobi.gurobi.GRBException;
 
 public class PuzzleSolver extends GRBCallback{
 	
