@@ -21,7 +21,7 @@ import subprocess
 import atexit
 
 
-VISION_PUB_PORT = 5556  # 要和 vision_pub.py 对齐
+VISION_PUB_PORT = 5556  
 VISION_SCRIPT = os.path.join(os.path.dirname(__file__), "vision_pub.py")
 
 _vision_proc = None
@@ -42,16 +42,15 @@ def _is_port_bound(port: int) -> bool:
 def start_vision_pub_if_needed() -> subprocess.Popen | None:
     global _vision_proc
 
-    # 端口已被占用：大概率 vision_pub 已经在跑（或别的东西占用）
     if _is_port_bound(VISION_PUB_PORT):
         print(f"[qt_gui] Port {VISION_PUB_PORT} already in use; skip starting vision_pub.")
         return None
 
-    python_exe = sys.executable  # 确保用同一个 python 环境启动
+    python_exe = sys.executable 
     cmd = [python_exe, VISION_SCRIPT]
     print(f"[qt_gui] Starting vision_pub: {' '.join(cmd)}")
 
-    # Windows 下不弹额外黑框：用 CREATE_NO_WINDOW（可选）
+
     creationflags = 0
     if os.name == "nt":
         creationflags = subprocess.CREATE_NO_WINDOW
@@ -59,12 +58,11 @@ def start_vision_pub_if_needed() -> subprocess.Popen | None:
     _vision_proc = subprocess.Popen(
         cmd,
         cwd=os.path.dirname(__file__),
-        stdout=subprocess.DEVNULL,   # 你也可以改成 PIPE 方便看日志
+        stdout=subprocess.DEVNULL,  
         stderr=subprocess.DEVNULL,
         creationflags=creationflags
     )
 
-    # 保险：GUI 退出时杀掉子进程
     def _cleanup():
         global _vision_proc
         if _vision_proc is not None and _vision_proc.poll() is None:
@@ -78,7 +76,6 @@ def start_vision_pub_if_needed() -> subprocess.Popen | None:
 
     atexit.register(_cleanup)
 
-    # 小等一下，让 vision_pub 完成 bind（避免 GUI 太快开始订阅导致“刚启动没数据”）
     time.sleep(0.2)
     return _vision_proc
 
@@ -103,7 +100,6 @@ class Canvas(QWidget):
 
         raw = QPixmap(os.path.join("images", "carImage.png"))
 
-        # 对齐你旧版尺寸：宽 = wheelBase * 2.0 / (9.0/8.0)，高 = wheelBase * 2.0
         w = int(utils.wheelBase * 2.0 / (9.0 / 8.0))
         h = int(utils.wheelBase * 2.0)
 
@@ -171,7 +167,6 @@ class Canvas(QWidget):
             painter.setFont(self.font)
             painter.drawText(int(x), int(y), str(car.ID))
             
-            # ======== 朝向箭头（关键）========
             arrow_len = 40
             hx = x + arrow_len * math.cos(th)
             hy = y + arrow_len * math.sin(th)
@@ -195,7 +190,7 @@ class MainWindow(QMainWindow):
 
         self.bound = utils.Boundary()
 
-        # cars dict: 建议统一用 carID 作为 key（更适合 SendId）
+        # cars dict
         self.cars = {}
 
         self._setup_argv_and_comm()
@@ -241,7 +236,6 @@ class MainWindow(QMainWindow):
         ptn_files = [f for f in listdir("patterns/") if isfile(join("patterns/", f))]
 
         ALLOWED_PATTERNS = {
-            # 把你真正要给人用的 pattern 写在这
             "circle1.py",
             "circle2.py",
             "figure8_2.py",
@@ -296,7 +290,7 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.canvas.update)
         self.timer.start(33)
 
-        # mouse path: 简化版（按住左键画点）
+        # mouse path
         self.canvas.setMouseTracking(True)
         self.canvas.mousePressEvent = self._mouse_press
         self.canvas.mouseReleaseEvent = self._mouse_release
@@ -326,7 +320,6 @@ class MainWindow(QMainWindow):
         else:
             utils.carInfo = [(i, i) for i in range(1, 7)]  # simulate 6 cars with tag = ID
 
-        # IMPORTANT: 统一用 carID 做 key，避免你旧代码里 car/tag 混用导致错车
         with lock:
             self.cars.clear()
             for carID, tag in utils.carInfo:
@@ -340,13 +333,12 @@ class MainWindow(QMainWindow):
             self.bound = utils.Boundary()
             self.GetRandomArrangement()
         else:
-            positionZMQSub._initialize_zmq()#开启了定位数据的持续接收通道，确保 GetLocation 线程之后能实时拿到坐标。
-            self.bound = utils.Boundary()#这通常是 Setup World Boundary（设置世界边界/围栏），规定车只能在多大的区域内动。
+            positionZMQSub._initialize_zmq()
+            self.bound = utils.Boundary()
 
         self.bound = utils.Boundary()
 
     def _setup_wheelbase_from_tags(self):
-        # 基本照搬你原来的 SetupWB（你原来还做了 wheelBase -= 30 这种魔法值）
         data = positionZMQSub._get_all_car_position_data()
         read = 0
         wb_sum = 0.0
@@ -416,8 +408,8 @@ class MainWindow(QMainWindow):
         # commit
         with lock:
             self.syn = True
-            # 注意：我们 cars 是以 carID 为 key，values() 顺序不保证
-            # 所以用 utils.carInfo 的顺序写入（稳定）
+            # Note: `self.cars` is keyed by carID; dict.values() order is not guaranteed
+            # Therefore write paths using the stable order from `utils.carInfo`.
             for idx, (carID, _) in enumerate(utils.carInfo):
                 self.cars[carID].path = merged[idx]
 
@@ -445,7 +437,6 @@ class MainWindow(QMainWindow):
 
         with lock:
             path = self.cars[carID].path
-            # 只有移动距离 >= 10 像素才加点（你可以调 6~15）
             if len(path) == 0 or math.hypot(x - path[-1][0], y - path[-1][1]) >= 10:
                 path.append((x, y))
                 self.syn = False
@@ -453,18 +444,17 @@ class MainWindow(QMainWindow):
 
     # -------- Threads (backend) --------
     def _start_threads(self):
-        self.running = True  # 添加标志位
+        self.running = True  # add running flag
         t_loc = threading.Thread(target=self.GetLocation, daemon=True)
         t_follow = threading.Thread(target=self.Follow, daemon=True)
         t_send = threading.Thread(target=self.SendSpeed, daemon=True)
         t_loc.start()
         t_follow.start()
         t_send.start()
-    #不断观察小车现在在哪，对比你画的轨迹，然后算出此时此刻左右两个轮子该转多快。
+
     def Follow(self):
-        # Qt版建议不要 0.001s 跑满CPU；5~10ms足够
         while True:
-            # 1) testing 时暂停 Follow
+            # 1) Pause Follow during testing
             with lock:
                 pass_test = (not self.testflag)
 
@@ -472,7 +462,7 @@ class MainWindow(QMainWindow):
                 time.sleep(0.01)
                 continue
 
-            # 2) 按 utils.carInfo 的稳定顺序读取 locs/paths（关键修复）
+            # 2) Read locs/paths in the stable order of utils.carInfo
             with lock:
                 locs = [
                     (self.cars[carID].x, self.cars[carID].y, self.cars[carID].theta)
@@ -485,16 +475,15 @@ class MainWindow(QMainWindow):
                 vM = self.sli_v.value() / 100.0 * self.vMax
                 syn = self.syn
 
-            # 3) 计算速度
+
             speeds = [(0.0, 0.0) for _ in locs]
             for i, (x, y, th) in enumerate(locs):
                 speeds[i] = DDR.Calculate(x, y, th, paths[i], vM, utils.wheelBase)
 
-            # 4) 可选同步   
+
             if syn:
                 self.Synchronize(speeds, paths)
 
-            # 5) 按同样顺序写回（现在 zip 一定对齐）
             with lock:
                 for (carID, _), sp, path in zip(utils.carInfo, speeds, paths):
                     self.cars[carID].lSpeed = sp[0]
@@ -509,29 +498,27 @@ class MainWindow(QMainWindow):
         if length == 0:
             return
         for i, p in enumerate(paths):
-            gap = length - len(p)                 # 路径长度差
-            diff = float(12 - gap) / 12.0         # 映射到 [0,1] 左右
+            gap = length - len(p)                 # difference in path lengths
+            diff = float(12 - gap) / 12.0         # map to roughly [0,1]
             if diff < 0.0:
                 diff = 0.0
 
-            # ✅ 关键改动：设置最小缩放，避免 diff=0 时速度直接变 (0,0)
+            # set a minimum scale to avoid speeds going to (0,0)
+            # when diff == 0.
             scale = max(0.2, math.sqrt(diff))
 
             speeds[i] = (speeds[i][0] * scale, speeds[i][1] * scale)
 
     def GetLocation(self):
         if self.sim:
-        # 仿真：根据左右轮速度，用 DDR.Simulate 更新位姿
             while True:
                 with lock:
                     run = self.runCar
-                    # 按 utils.carInfo 的顺序取，保持一致
                     locs = [(self.cars[carID].x, self.cars[carID].y, self.cars[carID].theta) for carID, _ in utils.carInfo]
                     speeds = [(self.cars[carID].lSpeed * self.simSpeed,
                             self.cars[carID].rSpeed * self.simSpeed) for carID, _ in utils.carInfo]
 
                 if run:
-                    # 逐车更新位姿
                     new_locs = []
                     for (x, y, th), (vL, vR) in zip(locs, speeds):
                         nx, ny, nth = DDR.Simulate(x, y, th, vL, vR, utils.wheelBase)
@@ -592,8 +579,8 @@ class MainWindow(QMainWindow):
             time.sleep(0.02)
 
     def closeEvent(self, event):
-        self.running = False  # 通知线程优雅退出
-        time.sleep(0.1)      # 给线程时间处理
+        self.running = False 
+        time.sleep(0.1)      
         try:
             if (not self.sim) and hasattr(self, "comm"):
                 self.comm.Flush()
@@ -686,8 +673,7 @@ class MainWindow(QMainWindow):
             self.testflag = True
 
     def B_plan(self):
-        # 0) 必须用 currentData()：UI 显示名 ≠ 文件名
-        #    下拉框初始化时应类似：
+
         #    self.sel_alg.addItem("MRPP", "mrpp_b.py")
         #    self.sel_alg.addItem("RVO2", "rvo2.py")
         alg_file = self.sel_alg.currentData()

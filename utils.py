@@ -5,11 +5,11 @@ import math
 # cars
 carInfo = []
 zmqPublisherIP = "localhost"
-zmqPublisherPort = "5556"   # 注意：你这里是字符串，保持一致即可（或改 int 5556）
+zmqPublisherPort = "5556"  
 
-simSpeed = 5.0
+simSpeed = 3.0
 wheelBase = 20.0
-tagRatio = 0.878  # 标签边长(3.6cm) / 物理轮距(4.1cm)  tag size in cm / actual tag size in cm
+tagRatio = 0.878  # (3.6cm) / (4.1cm)  tag size in cm / actual tag size in cm
 
 container_width = 700
 container_height = 500

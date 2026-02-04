@@ -1,4 +1,4 @@
-﻿# MVP3 Revamp
+﻿# MVP3 
 
 A multi-agent path planning and coordination system with real-time vision processing and simulation capabilities.
 
@@ -57,11 +57,7 @@ python qt_gui.py
 ```
 Real-hardware setup (XIAO ESP32C6)
 
-For real-world deployments we use Seeed XIAO ESP32C6 boards. One XIAO should act as the central signal sender and be connected directly to the PC via USB; flash that board with `xiao_ap_ESP_NOW.ino` from the `firmware/` folder. The remaining XIAO boards are installed on the robots — flash each robot's XIAO with `xiao_1_8_ESP_NOW.ino`. Adjust pin mappings in the sketches to match your hardware wiring. The system has been tested with around 10 robots operating concurrently. After the XIAO boards are flashed and the robots are powered, connect the camera and run the GUI (`python qt_gui.py`) to start the real-hardware experiment.
-
-Real-hardware deployment (XIAO ESP32C6)
-
-This project uses Seeed XIAO ESP32C6 boards for real-world experiments. Use one XIAO as the central transmitter connected directly to the PC via USB and flash it with `firmware/xiao_ap_ESP_NOW.ino`. Install the remaining XIAO boards on each robot and flash them with `firmware/xiao_1_8_ESP_NOW.ino`. Adjust the pin assignments in the sketches to match your wiring. The system has been tested to run stably with around 10 robots concurrently. After flashing the boards, powering the robots and connecting the camera, start the GUI with `python qt_gui.py` to begin the real-hardware experiment.
+For real-world deployments we use Seeed XIAO ESP32C6 boards. One XIAO should act as the central signal sender and be connected directly to the PC via USB; flash that board with xiao_ap_ESP_NOW.ino from the firmware/ folder. The remaining XIAO boards are installed on the robots — flash each robot's XIAO with xiao_1_8_ESP_NOW.ino. When flashing multiple robots, ensure you modify the CAR_ID in the xiao_1_8_ESP_NOW.ino file to assign a unique ID to each individual robot. Adjust pin mappings in the sketches to match your hardware wiring. The system has been tested with around 7 robots operating concurrently. After the XIAO boards are flashed and the robots are powered, connect the camera and run the GUI (python qt_gui.py) to start the real-hardware experiment.
 
 
 Project layout (summary)

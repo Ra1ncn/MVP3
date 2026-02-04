@@ -85,19 +85,7 @@ class UsbAPComm:
     # ---------------------------
 
     def SendId(self, idlist: Sequence[int], lefts: Sequence[float], rights: Sequence[float]) -> None:
-        # 在这一行代码执行时，底层函数会把数据拼凑成你在第一条提问中看到的那个 串口帧（Serial Frame）：
 
-        # 具体的拼接逻辑如下：
-
-        # 添加帧头：加上 0xAA 0x55。
-
-        # 添加层号：加上当前这个 level 的值。
-
-        # 添加长度：加上 32（即负载长度）。
-
-        # 填入数据：放入刚才生成的 32 字节 bytes 负载。
-
-        # 计算校验：对 level、len 和 payload 进行异或（XOR）运算，得到最后一个字节。
         """
         Build 32B payload(s) following CrazyRadioSendId semantics and send to AP over USB.
         """
@@ -178,7 +166,6 @@ class UsbAPComm:
             self._ser.write(payload32)
             return
             # AA 55 | level(1) | len=32(1) | payload32(32) | chk(1, XOR)
-            # 总长度 = 2 + 1 + 1 + 32 + 1 = 37 bytes
         lvl = level & 0xFF
         ln = 32
         body = bytes([lvl, ln]) + payload32
